@@ -9,7 +9,6 @@ public class SourceCharge {
     private double drawRadius = 15;
     private boolean showCharge = true;
     private boolean showCircle = true;
-    private boolean showText = true;
     private GraphicsContext gc;
     
     public SourceCharge(double charge, double x, double y, GraphicsContext gc) {
@@ -21,7 +20,7 @@ public class SourceCharge {
     }
     
     public SourceCharge(double charge, double x, double y, double drawRadius,
-            boolean showCharge, boolean showCircle, boolean showText, GraphicsContext gc) {
+            boolean showCharge, boolean showCircle, GraphicsContext gc) {
         super();
         this.charge = charge;
         this.x = x;
@@ -29,7 +28,6 @@ public class SourceCharge {
         this.drawRadius = drawRadius;
         this.showCharge = showCharge;
         this.showCircle = showCircle;
-        this.showText = showText;
         this.gc = gc;
     }
 
@@ -37,7 +35,7 @@ public class SourceCharge {
         gc.setFill(Paint.valueOf("#ffffff"));
         gc.fillOval(x - drawRadius, y - drawRadius, 2 * drawRadius, 2 * drawRadius);
         gc.strokeOval(x - drawRadius, y - drawRadius, 2 * drawRadius, 2 * drawRadius);
-        if (showText) {
+        if (showCharge) {
             String chargeString = (charge > 0) ? "+" + charge : "" + charge;
             gc.strokeText(chargeString, x - 12, y + 5);
         }
@@ -89,14 +87,6 @@ public class SourceCharge {
 
     public void setShowCircle(boolean showCircle) {
         this.showCircle = showCircle;
-    }
-
-    public boolean isShowText() {
-        return showText;
-    }
-
-    public void setShowText(boolean showText) {
-        this.showText = showText;
     }
 
     public GraphicsContext getGC() {
