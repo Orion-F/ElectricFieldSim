@@ -50,7 +50,7 @@ public class ViewerOptionsWindow extends Stage {
         label4 = new Label("Dynamic Scale:");
         label0.setTooltip(new Tooltip("Lines that come out of + charge per unit charge"));
         
-        field4 = new TextField(String.valueOf(ElectricFieldViewer.dynamicScale));
+        field4 = new TextField(String.valueOf(ElectricFieldViewer.dynamicScaleFactor));
         
         checkBox = new CheckBox("Dynamic Scale");
         checkBox.setSelected(ElectricFieldViewer.useDynamicScale);
@@ -103,7 +103,7 @@ public class ViewerOptionsWindow extends Stage {
         ElectricFieldViewer.drawLimit = Integer.valueOf(field1.getText());
         ElectricFieldViewer.step = Double.valueOf(field2.getText());
         ElectricFieldViewer.scale = Integer.valueOf(field3.getText());
-        ElectricFieldViewer.dynamicScale = Integer.valueOf(field4.getText());
+        ElectricFieldViewer.dynamicScaleFactor = Integer.valueOf(field4.getText());
         ElectricFieldViewer.useDynamicScale = checkBox.isSelected();
     }
 }
