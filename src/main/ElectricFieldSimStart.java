@@ -1,26 +1,45 @@
 package main;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+
 import javafx.application.Application;
 import javafx.stage.Stage;
-import run.ProgramInfo;
-import run.VersionReader;
 
-public class ElectricFieldSimStart extends Application{
+public class ElectricFieldSimStart extends Application {
+    
+    private static String version;
     
     public static ElectricFieldViewer viewer;
     public static ViewerOptionsWindow optionsWindow;
-
+    
     public static void main(String[] args) {
-        ProgramInfo.setName("Electric Field Sim");
-        ProgramInfo.setAuthor("Orion Forowycz");
-        VersionReader.useDefault(ElectricFieldSimStart.class);
+        initVersion();
         launch(args);
     }
-
+    
     @Override
     public void start(Stage arg0) throws Exception {
         viewer = new ElectricFieldViewer();
         optionsWindow = new ViewerOptionsWindow();
     }
-
+    
+    private static void initVersion() {
+        InputStream versionStream = ElectricFieldSimStart.class
+                .getResourceAsStream("/main/VERSION.txt");
+        if (versionStream != null) {
+            BufferedReader versionReader = new BufferedReader(new InputStreamReader(versionStream));
+            try {
+                version = versionReader.readLine();
+            } catch (IOException e) {
+                // Do nothing
+            }
+        }
+    }
+    
+    public static String getVersion() {
+        return version;
+    }
 }
