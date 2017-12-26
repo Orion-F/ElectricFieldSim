@@ -5,18 +5,23 @@ import java.util.ArrayList;
 
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Paint;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+
+import javax.xml.transform.Source;
 
 public class ElectricFieldViewer extends Stage {
     
@@ -34,16 +39,20 @@ public class ElectricFieldViewer extends Stage {
     private final double MIN_ZOOM = 0.25;
     private final double MAX_ZOOM = 4;
     private final double ZOOM_CHANGE_FACTOR = 2;
-    
+
     private double xTrans = 0;
     private double yTrans = 0;
     
     private final double SOURCE_CHARGE_DRAW_RADIUS = 15;
+
+    private final double VECTOR_FIELD_SEPARATION = 20;
     
     private final double TEST_CHARGE = 1;
     
     private final int INITIAL_WIDTH = 1000;
     private final int INITIAL_HEIGHT = 700;
+
+    private final int OPTIONS_PANE_WIDTH = 200;
     
     public ArrayList<SourceCharge> sourceCharges;
     
@@ -52,6 +61,17 @@ public class ElectricFieldViewer extends Stage {
     private Canvas canvas;
     private Scene baseScene;
     private BorderPane basePane;
+
+    private GridPane gridPane;
+    private Label label0, label1, label2, label3, label4, errorLabel;
+    private TextField field0, field1, field2, field3, field4;
+    private CheckBox checkBox;
+    private Button refreshButton, clearAllButton, editOptionsButton, linesOrVectorsButton;
+
+    private boolean areOptionsDisabled = false;
+
+    // When true, lines will be drawn from the charges. When false, direction vectors will be drawn at equal distances
+    private boolean drawLines = true;
     
     public ElectricFieldViewer() {
         this.setTitle(
@@ -67,6 +87,8 @@ public class ElectricFieldViewer extends Stage {
         });
         
         basePane = new BorderPane();
+
+        basePane.setStyle("-fx-background-color: #b3b3ff;");
         
         baseScene = new Scene(basePane);
         
@@ -86,19 +108,22 @@ public class ElectricFieldViewer extends Stage {
                         canvas.getHeight() + newSceneHeight.intValue() - oldSceneHeight.intValue());
             }
         });
-        
-        canvas = new Canvas(baseScene.getWidth(), baseScene.getHeight());
+
+        canvas = new Canvas(baseScene.getWidth() - OPTIONS_PANE_WIDTH, baseScene.getHeight());
         basePane.setCenter(canvas);
-        
+
         gc = canvas.getGraphicsContext2D();
         
         sourceCharges = new ArrayList<SourceCharge>();
         
         addMouseHandlers();
         addKeyHandlers();
+
+        createOptionsArea();
         
         this.setScene(baseScene);
         this.show();
+        this.setMaximized(true);
         
         xTrans = canvas.getWidth() / 2;
         yTrans = canvas.getHeight() / 2;
@@ -109,20 +134,21 @@ public class ElectricFieldViewer extends Stage {
     /**
      * Draws electric field lines from every positive source charge, until they
      * reach a negative source charge or the draw limit. The number of lines per
-     * positive source charge is equal to the scale or a dynamic scale of (
+     * positive source charge is equal to the scale or dynamic scale
      */
-    private void drawField() {
+    private void drawField(boolean isFromPositive) {
         double startAngle, preX, preY, nextX, nextY, nextAngle;
-        boolean notReachedNegative;
+        boolean notReachedOpposite;
         
         // The scale determines the number of lines draw around each positive
         // source charge.
         // By default it uses the number provided in the scale variable
         int scaleToUse = scale;
-        
+
+        // Cycles through initial charges
         for (SourceCharge c : sourceCharges) {
             
-            if (c.getCharge() > 0) {
+            if (isFromPositive && c.isPositive() || !isFromPositive && c.isNegative()) {
                 
                 // If dynamic scale is on, instead make the scale equal to 4 *
                 // the charge of the positive source charge, rounds up
@@ -141,55 +167,85 @@ public class ElectricFieldViewer extends Stage {
                     // the source charge using the angle
                     preX = c.getX() + xComp(SOURCE_CHARGE_DRAW_RADIUS, startAngle);
                     preY = c.getY() + yComp(SOURCE_CHARGE_DRAW_RADIUS, startAngle);
-                    
-                    notReachedNegative = true;
-                    
-                    for (int j = 0; notReachedNegative && j < drawLimit; j++) {
-                        
-                        // Use nextAngle to calculate which direction to draw
-                        nextAngle = nextAngle(preX, preY);
-                        
+
+                    notReachedOpposite = true;
+
+                    for (int j = 0; notReachedOpposite && j < drawLimit; j++) {
+
+                        Point2D.Double force = forceAt(preX, preY);
+
+                        // Calculate which direction to draw by finding the angle perpendicular to the force
+                        nextAngle = Math.atan2(force.x, force.y);
+
+                        // If going from negative source charge, then use the opposite angle
+                        if(c.isNegative()) {
+                            nextAngle = nextAngle + Math.PI;
+                        }
+
                         // Calculate end point of line to draw
                         nextX = preX + xComp(step, nextAngle);
                         nextY = preY + yComp(step, nextAngle);
-                        
+
                         // Draw line from old point to new point
                         gc.strokeLine(preX, preY, nextX, nextY);
-                        
+
                         // Make new point the old point
                         preX = nextX;
                         preY = nextY;
-                        
-                        // Checks if new point is inside charge so that the
-                        // drawing can stop
-                        for (SourceCharge c2 : sourceCharges) {
-                            
-                            // Only negative source charges
-                            if (c2.getCharge() < 0) {
-                                
+
+                        // Checks if new point is inside charge so that the drawing can stop
+                        // Cycles through possible final charges
+                        for (int k = 0; k < sourceCharges.size(); k++) {
+                            SourceCharge c2 = sourceCharges.get(k);
+
+                            // Look for only charges that are opposite of the charges where the lines came from
+                            if (c.isPositive() && c2.isNegative() || c.isNegative() && c2.isPositive()) {
+
                                 // If point is inside circle of source charge
                                 if ((nextX - c2.getX()) * (nextX - c2.getX()) + (nextY - c2.getY())
                                         * (nextY - c2.getY()) < SOURCE_CHARGE_DRAW_RADIUS
-                                                * SOURCE_CHARGE_DRAW_RADIUS) {
-                                    notReachedNegative = false;
+                                        * SOURCE_CHARGE_DRAW_RADIUS) {
+                                    notReachedOpposite = false;
                                 }
                             }
                         }
+
                     }
+
                 }
             }
         }
     }
     
+    private void drawVectorField() {
+        double xMin = (-canvas.getWidth() / 2 - xTrans + canvas.getWidth() / 2) / zoomLevel;
+        double xMax = (canvas.getWidth() / 2 - xTrans + canvas.getWidth() / 2) / zoomLevel;
+        double yMin = (-canvas.getHeight() / 2 - yTrans + canvas.getHeight() / 2) / zoomLevel;
+        double yMax = (canvas.getHeight() / 2 - yTrans + canvas.getHeight() / 2) / zoomLevel;
+
+        for (double x = xMin; x < xMax; x = x + VECTOR_FIELD_SEPARATION) {
+            for (double y = yMin; y < yMax; y = y + VECTOR_FIELD_SEPARATION) {
+
+                Point2D.Double force = forceAt(x, y);
+
+                double nextAngle = Math.atan2(force.x, force.y);
+
+                double nextX = x + xComp(step, nextAngle);
+                double nextY = y + yComp(step, nextAngle);
+
+                gc.strokeLine(x, y, nextX, nextY);
+            }
+        }
+    }
+    
     /**
-     * Finds the next angle for drawing the electric field line by finding the
-     * angle of the net force at the point given
+     * Finds the electric force in component form at a point in this electric field
      * 
      * @param x
      * @param y
-     * @return a double value for the next angle in radians
+     * @return a Point2D.Double for the force in component form
      */
-    private double nextAngle(double x, double y) {
+    private Point2D.Double forceAt(double x, double y) {
         double netX = 0;
         double netY = 0;
         double dis, mag, angle;
@@ -214,9 +270,9 @@ public class ElectricFieldViewer extends Stage {
         }
         
         // Return the angle of the net force
-        return Math.atan2(netY, netX);
+        return new Point2D.Double(netY, netX);
     }
-    
+
     private void drawSourceCharges() {
         for (SourceCharge c : sourceCharges) {
             String chargeColorString = (c.getCharge() > 0) ? "#ff3333" : "#3366ff";
@@ -237,36 +293,49 @@ public class ElectricFieldViewer extends Stage {
     }
     
     public void refresh() {
+
+//        long iTime = System.nanoTime();
+
         gc.setTransform(zoomLevel, 0, 0, zoomLevel, xTrans, yTrans);
         clear();
-        drawField();
+
+        if(drawLines) {
+            drawField(true);
+        } else {
+            drawVectorField();
+        }
+
         drawSourceCharges();
+
+//        long fTime = System.nanoTime();
+//        errorLabel.setText(String.valueOf(fTime - iTime));
+
     }
-    
+
     public ArrayList<SourceCharge> getCharges() {
         return sourceCharges;
     }
-    
+
     private double xComp(double mag, double angle) {
         return mag * Math.cos(angle);
     }
-    
+
     private double yComp(double mag, double angle) {
         return mag * Math.sin(angle);
     }
-    
+
     private void addMouseHandlers() {
         canvas.addEventFilter(MouseEvent.MOUSE_PRESSED, new EventHandler<MouseEvent>() {
             @Override
             public void handle(MouseEvent mouseEvent) {
                 if (mouseEvent.getButton() == MouseButton.PRIMARY) {
-                    ElectricFieldSimStart.optionsWindow.setValues();
+                    setValues();
                     sourceCharges.add(
                             new SourceCharge(placedCharge, (mouseEvent.getX() - xTrans) / zoomLevel,
                                     (mouseEvent.getY() - yTrans) / zoomLevel));
                     refresh();
                 } else if (mouseEvent.getButton() == MouseButton.SECONDARY) {
-                    ElectricFieldSimStart.optionsWindow.setValues();
+                    setValues();
                     sourceCharges.add(new SourceCharge(-placedCharge,
                             (mouseEvent.getX() - xTrans) / zoomLevel,
                             (mouseEvent.getY() - yTrans) / zoomLevel));
@@ -334,6 +403,128 @@ public class ElectricFieldViewer extends Stage {
             // yTrans += canvas.getHeight() / 2;
             
             refresh();
+        }
+    }
+
+    private void createOptionsArea() {
+
+        linesOrVectorsButton = new Button("Lines/Vectors");
+        linesOrVectorsButton.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent arg0) {
+                drawLines = !drawLines;
+                refresh();
+            }
+        });
+
+        editOptionsButton = new Button("Edit");
+        editOptionsButton.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent arg0) {
+                areOptionsDisabled = !areOptionsDisabled;
+                field0.setDisable(areOptionsDisabled);
+                field1.setDisable(areOptionsDisabled);
+                field2.setDisable(areOptionsDisabled);
+                field3.setDisable(areOptionsDisabled);
+                field4.setDisable(areOptionsDisabled);
+            }
+        });
+
+        label0 = new Label("Placed Charge:");
+        label0.setTooltip(new Tooltip("Left-click for positive, right-click for negative"));
+
+        field0 = new TextField(String.valueOf(ElectricFieldViewer.placedCharge));
+
+        label1 = new Label("Draw Limit:");
+        label1.setTooltip(new Tooltip("The higher the number, the longer the lines go"));
+
+        field1 = new TextField(String.valueOf(ElectricFieldViewer.drawLimit));
+
+        label2 = new Label("Step:");
+        label2.setTooltip(new Tooltip("The lower the number, the smoother the lines"));
+
+        field2 = new TextField(String.valueOf(ElectricFieldViewer.step));
+
+        label3 = new Label("Scale:");
+        label3.setTooltip(new Tooltip("Lines that come out of + charge, ignoring magnitude"));
+
+        field3 = new TextField(String.valueOf(ElectricFieldViewer.scale));
+
+        label4 = new Label("Dynamic Scale:");
+        label0.setTooltip(new Tooltip("Lines that come out of + charge per unit charge"));
+
+        field4 = new TextField(String.valueOf(ElectricFieldViewer.dynamicScaleFactor));
+
+        field0.setMaxWidth(70);
+        field1.setMaxWidth(70);
+        field2.setMaxWidth(70);
+        field3.setMaxWidth(70);
+        field4.setMaxWidth(70);
+
+        checkBox = new CheckBox("Dynamic Scale");
+        checkBox.setSelected(ElectricFieldViewer.useDynamicScale);
+        checkBox.setTooltip(new Tooltip("Change number of lines based on charge"));
+
+        refreshButton = new Button("Refresh");
+        refreshButton.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent arg0) {
+                setValues();
+                refresh();
+            }
+        });
+
+        clearAllButton = new Button("Clear All");
+        clearAllButton.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent arg0) {
+                sourceCharges.clear();
+                refresh();
+            }
+        });
+
+        errorLabel = new Label();
+        errorLabel.setStyle("-fx-background-color: #ff4040;");
+
+        gridPane = new GridPane();
+        gridPane.setHgap(10);
+        gridPane.setVgap(10);
+        gridPane.setPadding(new Insets(20, 10, 0, 10));
+        gridPane.setStyle("-fx-background-color: #8080ff;");
+
+        gridPane.add(linesOrVectorsButton, 0, 0);
+        gridPane.add(editOptionsButton, 1, 0);
+        gridPane.add(label0, 0, 1);
+        gridPane.add(field0, 1, 1);
+        gridPane.add(label1, 0, 2);
+        gridPane.add(field1, 1, 2);
+        gridPane.add(label2, 0, 3);
+        gridPane.add(field2, 1, 3);
+        gridPane.add(label3, 0, 4);
+        gridPane.add(field3, 1, 4);
+        gridPane.add(label4, 0, 5);
+        gridPane.add(field4, 1, 5);
+        gridPane.add(checkBox, 0, 6);
+        gridPane.add(refreshButton, 1, 6);
+        gridPane.add(errorLabel, 0, 7);
+        gridPane.add(clearAllButton, 0, 8);
+
+        basePane.setRight(gridPane);
+
+        editOptionsButton.fire();
+    }
+
+    private void setValues() {
+        try {
+            placedCharge = Double.valueOf(field0.getText());
+            drawLimit = Integer.valueOf(field1.getText());
+            step = Double.valueOf(field2.getText());
+            scale = Integer.valueOf(field3.getText());
+            dynamicScaleFactor = Integer.valueOf(field4.getText());
+            useDynamicScale = checkBox.isSelected();
+            errorLabel.setText("");
+        } catch (NumberFormatException e) {
+            errorLabel.setText("INPUT ERROR");
         }
     }
 }

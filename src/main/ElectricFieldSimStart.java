@@ -12,9 +12,6 @@ public class ElectricFieldSimStart extends Application {
     
     private static String version;
     
-    public static ElectricFieldViewer viewer;
-    public static ViewerOptionsWindow optionsWindow;
-    
     public static void main(String[] args) {
         initVersion();
         launch(args);
@@ -22,8 +19,7 @@ public class ElectricFieldSimStart extends Application {
     
     @Override
     public void start(Stage arg0) throws Exception {
-        viewer = new ElectricFieldViewer();
-        optionsWindow = new ViewerOptionsWindow();
+        new ElectricFieldViewer();
     }
     
     private static void initVersion() {

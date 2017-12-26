@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="ElectricFieldSim:jar">
+    <output-path>$USER_HOME$/Desktop</output-path>
+    <root id="archive" name="ElectricFieldSim.jar">
+      <element id="module-output" name="ElectricFieldSim" />
+    </root>
+  </artifact>
+</component>

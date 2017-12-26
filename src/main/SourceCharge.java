@@ -34,4 +34,12 @@ public class SourceCharge {
     public void setY(double y) {
         this.y = y;
     }
+
+    public boolean isPositive() {
+        return charge > 0;
+    }
+
+    public boolean isNegative() {
+        return charge < 0;
+    }
 }
