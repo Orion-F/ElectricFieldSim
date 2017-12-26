@@ -34,8 +34,8 @@ public class ElectricFieldSimStart extends Application {
             }
         }
     }
-    
-    public static String getVersion() {
+
+    static String getVersion() {
         return version;
     }
 }

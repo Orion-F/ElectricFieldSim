@@ -23,6 +23,6 @@ Field lines will come out of positive source charges and will eventually head to
 * Step determines the length of the pieces that make up each field line. A smaller value will generally make the field lines smoother at the cost of how far they will go.
 * Scale determines how many lines come out of each positive source charge, if dynamic scaling is off.
 * Dynamic Scale makes the number of lines that come out of each positive source charge equal to this number times the charge of the positive source charge, if dynamic scaling is on.
-* The Dynamic Scale option turns dynanic scaling on or off.
-* The Refresh button refreshs the electric field and source charge drawings, usually done automatically
+* The Dynamic Scale option turns dynamic scaling on or off.
+* The Refresh button refreshes the electric field and source charge drawings, usually done automatically
 * The Clear All button clears all the source charges and their fields from the viewer

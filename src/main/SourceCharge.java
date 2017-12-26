@@ -1,45 +1,33 @@
 package main;
 
-public class SourceCharge {
+class SourceCharge {
     
     private double charge, x, y;
     
-    public SourceCharge(double charge, double x, double y) {
+    SourceCharge(double charge, double x, double y) {
         super();
         this.charge = charge;
         this.x = x;
         this.y = y;
     }
     
-    public double getCharge() {
+    double getCharge() {
         return charge;
     }
     
-    public void setCharge(double charge) {
-        this.charge = charge;
-    }
-    
-    public double getX() {
+    double getX() {
         return x;
     }
     
-    public void setX(double x) {
-        this.x = x;
-    }
-    
-    public double getY() {
+    double getY() {
         return y;
     }
-    
-    public void setY(double y) {
-        this.y = y;
-    }
 
-    public boolean isPositive() {
+    boolean isPositive() {
         return charge > 0;
     }
 
-    public boolean isNegative() {
+    boolean isNegative() {
         return charge < 0;
     }
 }
